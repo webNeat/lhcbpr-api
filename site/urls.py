@@ -7,10 +7,12 @@ router = routers.DefaultRouter()
 router.register(r'applications', views.ApplicationViewSet)
 router.register(r'versions', views.ApplicationVersionViewSet)
 router.register(r'options', views.OptionViewSet)
-router.register(r'attributes', views.OptionAttributeViewSet)
+router.register(r'attributes', views.AttributeViewSet)
 router.register(r'setups', views.SetupProjectViewSet)
 router.register(r'descriptions', views.JobDescriptionViewSet)
 router.register(r'thresholds', views.AttributeThresholdViewSet)
+router.register(r'handlers', views.HandlerViewSet)
+router.register(r'jobs', views.JobViewSet)
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.

@@ -1,5 +1,8 @@
 from lhcbpr_api.models import (Application, ApplicationVersion, Option,
-                               SetupProject, JobDescription, OptionAttribute, AttributeThreshold)
+                               SetupProject, JobDescription, Attribute,
+                               AttributeThreshold, Handler, HandlerResult,
+                               JobHandler, AddedResult, Job,
+                               JobResult, ResultFile)
 from rest_framework import serializers
 
 
@@ -28,11 +31,11 @@ class JobDescriptionSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class ApplicationVersionSerializer(serializers.HyperlinkedModelSerializer):
-    jobdescriptions = JobDescriptionSerializer(many=True, read_only=True)
+    job_descriptions = JobDescriptionSerializer(many=True, read_only=True)
 
     class Meta:
         model = ApplicationVersion
-        fields = ('application', 'version', 'jobdescriptions')
+        fields = ('application', 'version', 'job_descriptions')
 
 
 class ApplicationSerializer(serializers.HyperlinkedModelSerializer):
@@ -51,12 +54,12 @@ class AttributeThresholdSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('attribute', 'up_value', 'down_value', 'start')
 
 
-class OptionAttributeSerializer(serializers.HyperlinkedModelSerializer):
+class AttributeSerializer(serializers.HyperlinkedModelSerializer):
     thresholds = AttributeThresholdSerializer(many=True, read_only=True)
 
     class Meta:
-        model = OptionAttribute
-        fields = ('option', 'name', 'dtype', 'description', 'thresholds')
+        model = Attribute
+        fields = ('name', 'dtype', 'description', 'thresholds')
 
 
 class JobDescriptionSerializer(serializers.HyperlinkedModelSerializer):
@@ -68,13 +71,51 @@ class JobDescriptionSerializer(serializers.HyperlinkedModelSerializer):
         model = JobDescription
         fields = ('application_version', 'setup_project', 'option')
 
-# class UserSerializer(serializers.HyperlinkedModelSerializer):
-#     class Meta:
-#         model = User
-#         fields = ('url', 'username', 'email', 'groups')
+
+class HandlerSerializer(serializers.HyperlinkedModelSerializer):
+
+    class Meta:
+        model = Handler
+        fields = ('name', 'description')
 
 
-# class GroupSerializer(serializers.HyperlinkedModelSerializer):
-#     class Meta:
-#         model = Group
-#         fields = ('url', 'name')
+class JobHandlerSerializer(serializers.HyperlinkedModelSerializer):
+
+    class Meta:
+        model = JobHandler
+        fields = ('job_description', 'handler')
+
+
+class HandlerResultSerializer(serializers.HyperlinkedModelSerializer):
+
+    class Meta:
+        model = HandlerResult
+        fields = ('job', 'handler', 'is_success')
+
+
+class AddedResultSerializer(serializers.HyperlinkedModelSerializer):
+
+    class Meta:
+        model = AddedResult
+        fields = ('identifier')
+
+
+class JobResultSerializer(serializers.HyperlinkedModelSerializer):
+
+    class Meta:
+        model = JobResult
+        fields = ('job', 'attr', 'data')
+
+
+class ResultFileSerializer(serializers.HyperlinkedModelSerializer):
+
+    class Meta:
+        model = JobResult
+        fields = ('job', 'file')
+
+class JobSerializer(serializers.HyperlinkedModelSerializer):
+
+    class Meta:
+        model = Job
+        fields = ('host', 'platform', 'time_start',
+            'time_end', 'status', 'is_success')

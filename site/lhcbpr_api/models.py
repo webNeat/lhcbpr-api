@@ -57,11 +57,11 @@ class SetupProject(models.Model):
 
 class JobDescription(models.Model):
     application_version = models.ForeignKey(
-        ApplicationVersion, related_name='jobdescriptions', db_index=False)
+        ApplicationVersion, related_name='job_descriptions', db_index=False)
     option = models.ForeignKey(
-        Option, null=True, related_name='jobdescriptions', db_index=False)
+        Option, null=True, related_name='job_descriptions', db_index=False)
     setup_project = models.ForeignKey(
-        SetupProject, null=True, related_name='jobdescriptions', db_index=False
+        SetupProject, null=True, related_name='job_descriptions', db_index=False
     )
 
     def __unicode__(self):
@@ -96,18 +96,19 @@ class RequestedPlatform(models.Model):
 class Job(models.Model):
     host = models.ForeignKey(
         Host, null=True, related_name='jobs', db_index=False)
-    jobDescription = models.ForeignKey(JobDescription, related_name='jobs')
+    job_description = models.ForeignKey('JobDescription', related_name='jobs',
+                                        db_column='job_description_id')
     platform = models.ForeignKey(Platform, null=True, related_name='jobs')
     time_start = models.DateTimeField()
     time_end = models.DateTimeField()
     status = models.CharField(max_length=50)
-    success = models.BooleanField(default=False)
+    is_success = models.BooleanField(default=False)
 
     def __unicode__(self):
         return '{0} (id) -- {1} (job_description_id)  ---  {2}  ---  {3}'\
                '  ---  {4} --- {5}'.format(
-                   self.id, self.jobDescription.id, self.time_end,
-                   self.platform.cmtconfig, self.host.hostname, self.success
+                   self.id, self.job_description.id, self.time_end,
+                   self.platform.cmtconfig, self.host.hostname, self.is_success
                )
 
 
@@ -132,16 +133,10 @@ class JobHandler(models.Model):
         )
 
 
-class OptionAttribute(models.Model):
-    option = models.ForeignKey(
-        Option, related_name='attributes', db_index=False
-    )
-    name = models.CharField(max_length=500)
+class Attribute(models.Model):
+    name = models.CharField(max_length=500, unique=True)
     dtype = models.CharField(max_length=8, choices=DATA_TYPE_CHOICES)
     description = models.CharField(max_length=500)
-
-    class Meta:
-        unique_together = ("option", "name")
 
     def __unicode__(self):
         return '{0} (id)  {1}  --  {2}  {3}'.format(
@@ -151,17 +146,20 @@ class OptionAttribute(models.Model):
 
 class AttributeThreshold(models.Model):
     attribute = models.ForeignKey(
-        OptionAttribute, related_name='thresholds', db_index=False
+        Attribute, related_name='thresholds', db_index=False
     )
-    down_value = models.FloatField() 
+    option = models.ForeignKey(
+        Option, related_name='thresholds'
+    )
+    down_value = models.FloatField()
     up_value = models.FloatField()
     start = models.DateTimeField()
 
 
-class JobResults(models.Model):
+class JobResult(models.Model):
     job = models.ForeignKey(Job, related_name='jobresults')
-    job_attribute = models.ForeignKey(
-        OptionAttribute, related_name='jobresults', db_index=False)
+    attr = models.ForeignKey(
+        Attribute, related_name='jobresults', db_index=False)
 
     def __unicode__(self):
         return '{0} (job_id) --- {1}'.format(
@@ -169,25 +167,26 @@ class JobResults(models.Model):
         )
 
 
-class ResultString(JobResults):
+class ResultString(JobResult):
     data = models.CharField(max_length=100)
 
 
-class ResultFloat(JobResults):
+class ResultFloat(JobResult):
     data = models.FloatField()
 
 
-class ResultInt(JobResults):
+class ResultInt(JobResult):
     data = models.IntegerField()
+
+# custom path to save the files in format
+# MEDIA_ROOT/job_description_id/job_id/filename
 
 # custom path to save the files in format
 # MEDIA_ROOT/job_description_id/job_id/filename
 
 
 def content_file_name(instance, filename):
-    return '/'.join(
-        [str(instance.job.jobDescription.pk), str(instance.job.pk), filename]
-    )
+    return '/'.join([str(instance.job.job_description.pk), str(instance.job.pk), filename])
 
 
 class ResultFile(models.Model):
@@ -203,15 +202,15 @@ class ResultFile(models.Model):
 class HandlerResult(models.Model):
     job = models.ForeignKey(Job, db_index=False)
     handler = models.ForeignKey(Handler, db_index=False)
-    success = models.BooleanField(default=False)
+    is_success = models.BooleanField(default=False)
 
     def __unicode__(self):
         return '{0} (job_id) {1} --- {2}'.format(
-            self.job.id, self.handler.name, self.success
+            self.job.id, self.handler.name, self.is_success
         )
 
 
-class AddedResults(models.Model):
+class AddedResult(models.Model):
     identifier = models.CharField(max_length=64)
 
     def __unicode__(self):
