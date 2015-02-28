@@ -56,5 +56,5 @@ target/
 
 # Sqllite
 *.sqlite3
-
-dump.json
+static/
+migrations/
