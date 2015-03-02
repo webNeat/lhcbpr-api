@@ -1,16 +1,36 @@
 from lhcbpr_api.models import (Application, ApplicationVersion, Option,
                                SetupProject, JobDescription, Attribute,
                                AttributeThreshold, Handler, HandlerResult,
-                               JobHandler, AddedResult, Job,
-                               JobResult, ResultFile)
+                               JobHandler, AddedResult, Job, Host,
+                               JobResult,  ResultFile, Platform)
 from rest_framework import serializers
+from rest_framework_extensions.fields import ResourceUriField
+
+
+class AttributeNoThresholdsSerializer(serializers.HyperlinkedModelSerializer):
+    resource_uri = ResourceUriField(
+        view_name='attribute-detail', read_only=True)
+
+    class Meta:
+        model = Attribute
+        fields = ('id', 'resource_uri', 'name', 'dtype', 'description')
+
+
+class AttributeThresholdSerializer(serializers.HyperlinkedModelSerializer):
+    attribute = AttributeNoThresholdsSerializer(many=False, read_only=True)
+
+    class Meta:
+        model = AttributeThreshold
+        fields = ('attribute', 'option', 'up_value', 'down_value', 'start')
 
 
 class OptionSerializer(serializers.HyperlinkedModelSerializer):
+    thresholds = AttributeThresholdSerializer(many=True, read_only=True)
 
     class Meta:
         model = Option
-        fields = ('content', 'description', 'is_standalone')
+        fields = (
+            'id', 'content', 'description', 'is_standalone', 'thresholds')
 
 
 class SetupProjectSerializer(serializers.HyperlinkedModelSerializer):
@@ -20,22 +40,33 @@ class SetupProjectSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('content', 'description')
 
 
+class ApplicationNoVerSerializer(serializers.HyperlinkedModelSerializer):
+    # versions = serializers.StringRelatedField(many=True)
+    # versions = ApplicationVersionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Application
+        fields = ('name',)
+
+
+class ApplicationVersionSerializer(serializers.HyperlinkedModelSerializer):
+    #job_descriptions = JobDescriptionSerializer(many=True, read_only=True)
+    application = ApplicationNoVerSerializer(many=False, read_only=True)
+
+    class Meta:
+        model = ApplicationVersion
+        fields = ('application', 'version', 'job_descriptions')
+
+
 class JobDescriptionSerializer(serializers.HyperlinkedModelSerializer):
-    # application_version = ApplicationVersionSerializer(many=False)
+    application_version = ApplicationVersionSerializer(
+        many=False, read_only=True)
     option = OptionSerializer(many=False)
     setup_project = SetupProjectSerializer(many=False)
 
     class Meta:
         model = JobDescription
         fields = ('application_version', 'setup_project', 'option')
-
-
-class ApplicationVersionSerializer(serializers.HyperlinkedModelSerializer):
-    job_descriptions = JobDescriptionSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = ApplicationVersion
-        fields = ('application', 'version', 'job_descriptions')
 
 
 class ApplicationSerializer(serializers.HyperlinkedModelSerializer):
@@ -47,29 +78,12 @@ class ApplicationSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('name', 'versions')
 
 
-class AttributeThresholdSerializer(serializers.HyperlinkedModelSerializer):
-
-    class Meta:
-        model = AttributeThreshold
-        fields = ('attribute', 'up_value', 'down_value', 'start')
-
-
 class AttributeSerializer(serializers.HyperlinkedModelSerializer):
     thresholds = AttributeThresholdSerializer(many=True, read_only=True)
 
     class Meta:
         model = Attribute
-        fields = ('name', 'dtype', 'description', 'thresholds')
-
-
-class JobDescriptionSerializer(serializers.HyperlinkedModelSerializer):
-    # application_version = ApplicationVersionSerializer(many=False)
-    # option = OptionSerializer(many=False)
-    # setup_project = SetupProjectSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = JobDescription
-        fields = ('application_version', 'setup_project', 'option')
+        fields = ('id', 'name', 'dtype', 'description', 'thresholds')
 
 
 class HandlerSerializer(serializers.HyperlinkedModelSerializer):
@@ -100,22 +114,49 @@ class AddedResultSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('identifier')
 
 
-class JobResultSerializer(serializers.HyperlinkedModelSerializer):
-
-    class Meta:
-        model = JobResult
-        fields = ('job', 'attr', 'data')
-
-
 class ResultFileSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = JobResult
         fields = ('job', 'file')
 
-class JobSerializer(serializers.HyperlinkedModelSerializer):
+
+class HostSerializer(serializers.HyperlinkedModelSerializer):
+    #host = HostSerializer(many=False)
 
     class Meta:
+        model = Host
+        fields = ('id', 'hostname', 'cpu_info', 'memory_info')
+
+
+class PlatformSerializer(serializers.HyperlinkedModelSerializer):
+
+    class Meta:
+        model = Platform
+        fields = ('cmtconfig',)
+
+class JobResultNoJobSerializer(serializers.HyperlinkedModelSerializer):
+    attr = AttributeSerializer(many=False, read_only=True)
+    class Meta:
+        model = JobResult
+        fields = ('attr', 'val_float', 'val_string', 'val_int')
+
+class JobSerializer(serializers.HyperlinkedModelSerializer):
+    job_description = JobDescriptionSerializer(many=False, read_only=True)
+    host = HostSerializer(many=False, read_only=True)
+    platform = PlatformSerializer(many=False, read_only=True)
+    resource_uri = ResourceUriField(view_name='job-detail', read_only=True)
+    results = JobResultNoJobSerializer(many=True, read_only=True)
+    class Meta:
         model = Job
-        fields = ('host', 'platform', 'time_start',
-            'time_end', 'status', 'is_success')
+        fields = ('id', 'resource_uri', 'job_description', 'host', 'platform',
+                  'time_start', 'time_end', 'status', 'is_success', 'results')
+
+
+class JobResultSerializer(serializers.HyperlinkedModelSerializer):
+    attr = AttributeSerializer(many=False, read_only=True)
+    job = JobSerializer(many=False, read_only=True)
+
+    class Meta:
+        model = JobResult
+        fields = ('job', 'attr', 'val_float', 'val_string', 'val_int')

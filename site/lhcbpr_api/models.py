@@ -69,7 +69,7 @@ class JobDescription(models.Model):
             self.id,
             self.application_version.version,
             self.application_version.application.name,
-            self.options.description
+            self.option.description
         )
 
 
@@ -95,7 +95,7 @@ class RequestedPlatform(models.Model):
 
 class Job(models.Model):
     host = models.ForeignKey(
-        Host, null=True, related_name='jobs', db_index=False)
+        Host, null=True, related_name='job', db_index=False)
     job_description = models.ForeignKey('JobDescription', related_name='jobs',
                                         db_column='job_description_id')
     platform = models.ForeignKey(Platform, null=True, related_name='jobs')
@@ -103,6 +103,9 @@ class Job(models.Model):
     time_end = models.DateTimeField()
     status = models.CharField(max_length=50)
     is_success = models.BooleanField(default=False)
+
+    def results(self):
+        return self.floats + self.string + self.integers
 
     def __unicode__(self):
         return '{0} (id) -- {1} (job_description_id)  ---  {2}  ---  {3}'\
@@ -157,26 +160,19 @@ class AttributeThreshold(models.Model):
 
 
 class JobResult(models.Model):
-    job = models.ForeignKey(Job, related_name='jobresults')
+    job = models.ForeignKey(Job, related_name='results', db_index=False)
     attr = models.ForeignKey(
         Attribute, related_name='jobresults', db_index=False)
+    handler = models.ForeignKey(Handler, related_name="results")
+    val_float = models.FloatField(null=True)
+    val_string = models.CharField(null=True, max_length=100)
+    val_int = models.IntegerField(null=True)
 
     def __unicode__(self):
         return '{0} (job_id) --- {1}'.format(
             self.job.id, self.job_attribute
         )
 
-
-class ResultString(JobResult):
-    data = models.CharField(max_length=100)
-
-
-class ResultFloat(JobResult):
-    data = models.FloatField()
-
-
-class ResultInt(JobResult):
-    data = models.IntegerField()
 
 # custom path to save the files in format
 # MEDIA_ROOT/job_description_id/job_id/filename
