@@ -1,10 +1,12 @@
 from django.conf.urls import url, include
 from rest_framework import routers
 from lhcbpr_api import views
+from rest_framework.routers import DefaultRouter
 from rest_framework_extensions.routers import ExtendedDefaultRouter
 
 
 router = ExtendedDefaultRouter()
+default_router = DefaultRouter()
 
 router.register(r'applications', views.ApplicationViewSet)
 router.register(r'versions', views.ApplicationVersionViewSet)
@@ -37,13 +39,32 @@ router_jd.register(r'jobs', views.JobViewSet, base_name='jobdescription-job',
 router_jd.register(r'options', views.OptionViewSet, base_name="jobdescription-option",
                    parents_query_lookups=['job_descriptions'])
 
-
 router.register(
     r'result_by_opt_and_attr/(?P<option>[^/.]+)_(?P<attr>[^/.]+)', views.JobResultByOptionAndAttribute, base_name="result_by_opt_and_attr")
+
+router.register(
+    r"active/applications", views.ActiveApplicationViewSet,
+    base_name="applications-active"
+)
+
+router.register(
+    r"search-jobs", views.SearchJobsViewSet,
+    base_name="search-jobs"
+)
+
+# router.register(
+#     r"active/options", views.ActiveOptionViewSet,
+#     base_name="options-active"
+# )
+
+
+
+
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
     url(r'^', include(router.urls)),
+    url(r'^', include(default_router.urls)),
 
     url(r'^api-auth/',
         include('rest_framework.urls', namespace='rest_framework'))

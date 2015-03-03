@@ -46,7 +46,7 @@ class ApplicationNoVerSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Application
-        fields = ('name',)
+        fields = ('id', 'name')
 
 
 class ApplicationVersionSerializer(serializers.HyperlinkedModelSerializer):
@@ -55,7 +55,7 @@ class ApplicationVersionSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = ApplicationVersion
-        fields = ('application', 'version', 'job_descriptions')
+        fields = ('id', 'application', 'version', 'job_descriptions')
 
 
 class JobDescriptionSerializer(serializers.HyperlinkedModelSerializer):
@@ -75,7 +75,7 @@ class ApplicationSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Application
-        fields = ('name', 'versions')
+        fields = ('id', 'name', 'versions')
 
 
 class AttributeSerializer(serializers.HyperlinkedModelSerializer):
@@ -160,3 +160,9 @@ class JobResultSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = JobResult
         fields = ('job', 'attr', 'val_float', 'val_string', 'val_int')
+
+
+class ActiveItemSerializer(serializers.Serializer):
+    id=serializers.IntegerField()
+    name=serializers.CharField(max_length=200)
+    count=serializers.IntegerField()
