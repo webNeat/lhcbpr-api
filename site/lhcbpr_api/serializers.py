@@ -49,8 +49,16 @@ class ApplicationNoVerSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('id', 'name')
 
 
+class JobDescriptionNoVersionSerializer(serializers.HyperlinkedModelSerializer):
+    option = OptionSerializer(many=False)
+    setup_project = SetupProjectSerializer(many=False)
+
+    class Meta:
+        model = JobDescription
+        fields = ('setup_project', 'option')
+
 class ApplicationVersionSerializer(serializers.HyperlinkedModelSerializer):
-    #job_descriptions = JobDescriptionSerializer(many=True, read_only=True)
+    job_descriptions = JobDescriptionNoVersionSerializer(many=True, read_only=True)
     application = ApplicationNoVerSerializer(many=False, read_only=True)
 
     class Meta:
@@ -70,7 +78,6 @@ class JobDescriptionSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class ApplicationSerializer(serializers.HyperlinkedModelSerializer):
-    # versions = serializers.StringRelatedField(many=True)
     versions = ApplicationVersionSerializer(many=True, read_only=True)
 
     class Meta:

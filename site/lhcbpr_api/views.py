@@ -1,3 +1,4 @@
+import sys
 from lhcbpr_api.models import (Application, ApplicationVersion,
                                Option, Attribute, SetupProject,
                                JobDescription,
@@ -211,7 +212,7 @@ class SearchJobsViewSet(viewsets.ViewSet):
         if options:
             ids = options.split(',')
             queryset = queryset.filter(job_description__option__id__in=ids)
-
+        print >>sys.stderr, queryset.query
         serializer = JobSerializer(queryset, many=True, read_only=True, context={'request': request})
         return Response(serializer.data)
 
