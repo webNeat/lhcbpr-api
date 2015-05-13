@@ -1,11 +1,15 @@
 from django.db import models
 
 
+import logging
+logger = logging.getLogger(__name__)
+
 DATA_TYPE_CHOICES = (
-    ('str', 'string'),
-    ('float', 'float'),
-    ('int', 'integer'),
-    ('dt', 'datetime')
+    ('String', 'String'),
+    ('Float', 'Float'),
+    ('Integer', 'Integer'),
+    ('DateTime', 'DateTime'),
+    ('File', 'File')
 )
 
 
@@ -30,6 +34,7 @@ class ApplicationVersion(models.Model):
         Application, related_name='versions', db_index=False
     )
     version = models.CharField(max_length=50)
+    is_nightly = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ("application", "version")
@@ -37,6 +42,9 @@ class ApplicationVersion(models.Model):
     def __unicode__(self):
         return '{0} {1}'.format(self.application.name, self.version)
 
+    @staticmethod
+    def is_it_nightly(version):
+        return version and (version[0] != 'v')
 
 class Option(models.Model):
     content = models.CharField(max_length=2000)
@@ -63,7 +71,8 @@ class JobDescription(models.Model):
     setup_project = models.ForeignKey(
         SetupProject, null=True, related_name='job_descriptions', db_index=False
     )
-
+    
+    old_id = models.IntegerField(null=True)
     def __unicode__(self):
         return '{0} (id)   {1}  {2}  {3}'.format(
             self.id,
@@ -122,7 +131,6 @@ class Handler(models.Model):
     def __unicode__(self):
         return self.name
 
-
 class JobHandler(models.Model):
     job_description = models.ForeignKey(JobDescription, db_index=False)
     handler = models.ForeignKey(Handler, db_index=False)
@@ -135,12 +143,17 @@ class JobHandler(models.Model):
             self.job_description.id, self.handler
         )
 
+class AttributeGroup(models.Model):
+    name = models.CharField(max_length=255, db_index=True)
 
 class Attribute(models.Model):
-    name = models.CharField(max_length=500, unique=True)
-    dtype = models.CharField(max_length=8, choices=DATA_TYPE_CHOICES)
+    name = models.CharField(max_length=500, db_index=True)
+    dtype = models.CharField(max_length=10, choices=DATA_TYPE_CHOICES)
     description = models.CharField(max_length=500)
+    groups = models.ManyToManyField(AttributeGroup, related_name='attributes')
 
+    def get_result_type(self):
+        return globals()["Result" + self.dtype]
     def __unicode__(self):
         return '{0} (id)  {1}  --  {2}  {3}'.format(
             self.id, self.name, self.dtype, self.description
@@ -159,20 +172,36 @@ class AttributeThreshold(models.Model):
     start = models.DateTimeField()
 
 
+def content_file_name(instance, filename):
+    return '/'.join([str(instance.job.job_description.pk), str(instance.job.pk), filename])
+
 class JobResult(models.Model):
     job = models.ForeignKey(Job, related_name='results', db_index=False)
     attr = models.ForeignKey(
         Attribute, related_name='jobresults', db_index=False)
-    handler = models.ForeignKey(Handler, related_name="results")
-    val_float = models.FloatField(null=True)
-    val_string = models.CharField(null=True, max_length=100)
-    val_int = models.IntegerField(null=True)
+
+    def get_value(self):
+        subtype = self.attr.get_result_type()
+        val = subtype.objects.get(pk=self.pk)
+        return str(val.data)
 
     def __unicode__(self):
         return '{0} (job_id) --- {1}'.format(
             self.job.id, self.job_attribute
         )
 
+class ResultFloat(JobResult):
+    data = models.FloatField()
+
+class ResultInteger(JobResult):
+    data = models.IntegerField()
+
+class ResultString(JobResult):
+    data = models.TextField()
+
+class ResultFile(JobResult):
+    data = models.FileField()
+
 
 # custom path to save the files in format
 # MEDIA_ROOT/job_description_id/job_id/filename
@@ -181,18 +210,6 @@ class JobResult(models.Model):
 # MEDIA_ROOT/job_description_id/job_id/filename
 
 
-def content_file_name(instance, filename):
-    return '/'.join([str(instance.job.job_description.pk), str(instance.job.pk), filename])
-
-
-class ResultFile(models.Model):
-    job = models.ForeignKey(Job, related_name='files')
-    file = models.FileField(upload_to=content_file_name, blank=True)
-
-    def __unicode__(self):
-        return '{0} (job_id) --- {1}'.format(
-            self.job.id, self.file
-        )
 
 
 class HandlerResult(models.Model):

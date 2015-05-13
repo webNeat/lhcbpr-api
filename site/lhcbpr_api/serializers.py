@@ -1,10 +1,13 @@
 from lhcbpr_api.models import (Application, ApplicationVersion, Option,
                                SetupProject, JobDescription, Attribute,
+                               AttributeGroup,
                                AttributeThreshold, Handler, HandlerResult,
                                JobHandler, AddedResult, Job, Host,
-                               JobResult,  ResultFile, Platform)
+                               JobResult, Platform)
 from rest_framework import serializers
+from rest_framework.pagination import PaginationSerializer
 from rest_framework_extensions.fields import ResourceUriField
+
 
 
 class AttributeNoThresholdsSerializer(serializers.HyperlinkedModelSerializer):
@@ -63,7 +66,7 @@ class ApplicationVersionSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = ApplicationVersion
-        fields = ('id', 'application', 'version', 'job_descriptions')
+        fields = ('id', 'application', 'version', 'is_nightly', 'job_descriptions')
 
 
 class JobDescriptionSerializer(serializers.HyperlinkedModelSerializer):
@@ -92,6 +95,18 @@ class AttributeSerializer(serializers.HyperlinkedModelSerializer):
         model = Attribute
         fields = ('id', 'name', 'dtype', 'description', 'thresholds')
 
+class AttributeGroupListSerializer(serializers.HyperlinkedModelSerializer):
+    resource_uri = ResourceUriField(view_name='attributegroup-detail', read_only=True)
+    class Meta:
+        model = AttributeGroup
+        fields = ('id', 'resource_uri', 'name')
+
+class AttributeGroupRetrieveSerializer(serializers.HyperlinkedModelSerializer):
+    resource_uri = ResourceUriField(view_name='attributegroup-detail', read_only=True)
+    attributes = AttributeSerializer(many=True, read_only=True)
+    class Meta:
+        model = AttributeGroup
+        fields = ('id', 'resource_uri', 'name', 'attributes')
 
 class HandlerSerializer(serializers.HyperlinkedModelSerializer):
 
@@ -118,14 +133,9 @@ class AddedResultSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = AddedResult
-        fields = ('identifier')
+        fields = ('identifier',)
 
 
-class ResultFileSerializer(serializers.HyperlinkedModelSerializer):
-
-    class Meta:
-        model = JobResult
-        fields = ('job', 'file')
 
 
 class HostSerializer(serializers.HyperlinkedModelSerializer):
@@ -144,11 +154,23 @@ class PlatformSerializer(serializers.HyperlinkedModelSerializer):
 
 class JobResultNoJobSerializer(serializers.HyperlinkedModelSerializer):
     attr = AttributeSerializer(many=False, read_only=True)
+    value = serializers.CharField(source="get_value")
     class Meta:
         model = JobResult
-        fields = ('attr', 'val_float', 'val_string', 'val_int')
+        fields = ('attr', 'value')
 
-class JobSerializer(serializers.HyperlinkedModelSerializer):
+class JobListSerializer(serializers.HyperlinkedModelSerializer):
+    job_description = JobDescriptionSerializer(many=False, read_only=True)
+    host = HostSerializer(many=False, read_only=True)
+    platform = PlatformSerializer(many=False, read_only=True)
+    resource_uri = ResourceUriField(view_name='job-detail', read_only=True)
+    #results = JobResultNoJobSerializer(many=True, read_only=True)
+    class Meta:
+        model = Job
+        fields = ('id', 'resource_uri', 'job_description', 'host', 'platform',
+                  'time_start', 'time_end', 'status', 'is_success')
+
+class JobRetrieveSerializer(serializers.HyperlinkedModelSerializer):
     job_description = JobDescriptionSerializer(many=False, read_only=True)
     host = HostSerializer(many=False, read_only=True)
     platform = PlatformSerializer(many=False, read_only=True)
@@ -160,14 +182,21 @@ class JobSerializer(serializers.HyperlinkedModelSerializer):
                   'time_start', 'time_end', 'status', 'is_success', 'results')
 
 
+
 class JobResultSerializer(serializers.HyperlinkedModelSerializer):
     attr = AttributeSerializer(many=False, read_only=True)
-    job = JobSerializer(many=False, read_only=True)
-
+    job = JobListSerializer(many=False, read_only=True)
+    value = serializers.CharField(source="get_value")
     class Meta:
         model = JobResult
-        fields = ('job', 'attr', 'val_float', 'val_string', 'val_int')
+        fields = ('attr', 'value','job', )
 
+class PaginatedJobResultSerializer(PaginationSerializer):
+    """
+    Serializes page objects of user querysets.
+    """
+    class Meta:
+        object_serializer_class = JobResultSerializer
 
 class ActiveItemSerializer(serializers.Serializer):
     id=serializers.IntegerField()

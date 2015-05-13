@@ -1,20 +1,26 @@
 import sys
 from lhcbpr_api.models import (Application, ApplicationVersion,
                                Option, Attribute, SetupProject,
-                               JobDescription,
+                               JobDescription, AttributeGroup,
                                AttributeThreshold, Handler, JobHandler,
                                HandlerResult, AddedResult, Job,
-                               JobResult, ResultFile, Platform, Host)
+                               JobResult, Platform, Host)
 
 from rest_framework import viewsets
+from rest_framework import generics
+from rest_framework import mixins
 
 from rest_framework.response import Response
 from serializers import *
 from rest_framework_extensions.mixins import NestedViewSetMixin
+from rest_framework_extensions.mixins import PaginateByMaxMixin
+
 from django.shortcuts import get_object_or_404
 from django.db.models import Count
 from rest_framework.decorators import detail_route, list_route
 
+import logging
+logger = logging.getLogger(__name__)
 
 class ApplicationViewSet(viewsets.ModelViewSet):
     queryset = Application.objects.all()
@@ -30,6 +36,14 @@ class OptionViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
     queryset = Option.objects.all()
     serializer_class = OptionSerializer
 
+class AttributeGroupViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
+    queryset = AttributeGroup.objects.all()
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return AttributeGroupListSerializer
+        else:
+            return AttributeGroupRetrieveSerializer
 
 class AttributeViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
     queryset = Attribute.objects.all()
@@ -66,7 +80,7 @@ class HandlerResultViewSet(viewsets.ModelViewSet):
     serializer_class = HandlerResultSerializer
 
 
-class JobResultViewSet(viewsets.ModelViewSet):
+class JobResultViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
     queryset = JobResult.objects.all()
     serializer_class = JobResultSerializer
 
@@ -82,15 +96,15 @@ class JobResultByOptionAndAttribute(viewsets.ViewSet):
         return Response(serializer.data)
 
 
-class ResultFileViewSet(viewsets.ModelViewSet):
-    queryset = ResultFile.objects.all()
-    serializer_class = ResultFileSerializer
-
-
 class JobViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
     queryset = Job.objects.all()
-    serializer_class = JobSerializer
+    serializer_class = JobListSerializer
 
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return JobListSerializer
+        else:
+            return JobRetrieveSerializer
 
 class PlatformViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
     queryset = Platform.objects.all()
@@ -213,13 +227,13 @@ class SearchJobsViewSet(viewsets.ViewSet):
             ids = options.split(',')
             queryset = queryset.filter(job_description__option__id__in=ids)
         print >>sys.stderr, queryset.query
-        serializer = JobSerializer(queryset, many=True, read_only=True, context={'request': request})
+        serializer = JobListSerializer(queryset, many=True, read_only=True, context={'request': request})
         return Response(serializer.data)
 
     def retrieve(self, request, pk=None):
         queryset = Job.objects.all()
         job = get_object_or_404(queryset, pk=pk)
-        serializer = JobSerializer(job, context={'request': request})
+        serializer = JobRetreiveSerializer(job, context={'request': request})
         return Response(serializer.data)
 
     @list_route()
