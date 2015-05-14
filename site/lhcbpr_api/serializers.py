@@ -176,9 +176,10 @@ class JobRetrieveSerializer(serializers.HyperlinkedModelSerializer):
     platform = PlatformSerializer(many=False, read_only=True)
     resource_uri = ResourceUriField(view_name='job-detail', read_only=True)
     results = JobResultNoJobSerializer(many=True, read_only=True)
+
     class Meta:
         model = Job
-        fields = ('id', 'resource_uri', 'job_description', 'host', 'platform',
+        fields = ('id', 'old_id', 'resource_uri', 'job_description', 'host', 'platform',
                   'time_start', 'time_end', 'status', 'is_success', 'results')
 
 

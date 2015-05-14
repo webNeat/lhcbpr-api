@@ -1,4 +1,4 @@
-]from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand
 import lhcbpr.models as v1
 import lhcbpr_api.models
 from lhcbpr_api.models import *
@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
     help = "Synchronize with v1 database"
+
 
     def handle(self, *args, **options):
         # Applications
@@ -37,7 +38,7 @@ class Command(BaseCommand):
             self._handler(handler_source)
 
         # JobHandler
-        for jh_source in v1.JobHandler.objects.using('v1').order_by('-time_start'):
+        for jh_source in v1.JobHandler.objects.using('v1').all():
             self._job_handler(jh_source)
 
 
@@ -46,8 +47,13 @@ class Command(BaseCommand):
             self._host(host_source)
 
         # Job
-        for job_source in v1.Job.objects.using('v1').all():
+        njobs = v1.Job.objects.using('v1').count()
+        logger.info("Number of jobs in V1 %d" % njobs)
+        for job_source in v1.Job.objects.using('v1').order_by('-time_start'):
             self._job(job_source)
+            njobs -= 1
+            logger.info("Jobs to process: %d" % njobs) 
+   
 
         # Attribute groups
         # for ja_source in v1.JobAttribute.objects.using('v1').all():
@@ -61,8 +67,7 @@ class Command(BaseCommand):
     def _application(self, app_source):
         app_target = Application.objects.filter(name=app_source.appName)
         if not app_target:
-            app_target = Application.objects.create(
-                name=app_source.appName)
+            app_target = Application.objects.create(name=app_source.appName)
             app_target.save()
         else:
             app_target = app_target[0]
@@ -84,11 +89,13 @@ class Command(BaseCommand):
 
     def _option(self, option_source):
         option_target = Option.objects.filter(
-        content=option_source.content)
+            old_id=option_source.id
+        )
         if not option_target:
             option_target = Option.objects.create(
                 content=option_source.content,
-                description=option_source.description
+                description=option_source.description,
+                old_id=option_source.id
             )
             option_target.save()
         else:
@@ -97,12 +104,13 @@ class Command(BaseCommand):
 
     def _setup_project(self, setup_source):
         setup_target = SetupProject.objects.filter(
-            content=setup_source.content
+            old_id=setup_source.id
         )
         if not setup_target:
             setup_target = SetupProject.objects.create(
                 content=setup_source.content,
-                description=setup_source.description
+                description=setup_source.description,
+                old_id=setup_source.id
             )
             setup_target.save()
         else:
@@ -110,16 +118,14 @@ class Command(BaseCommand):
         return setup_target
 
     def _job_description(self, jd_source):
-        ver = self._application(jd_source.application)
-        opt = self._option(jd_source.options)
-        if jd_source.setup_project:
-            setup = SetupProject.objects.filter(content=jd_source.setup_project.content)[0]
-        else:
-            setup = None
-
-        jd_target = JobDescription.objects.filter(application_version=ver, option=opt, setup_project=setup)
-
+        jd_target = JobDescription.objects.filter(old_id=jd_source.id)
         if not jd_target:
+            ver = self._application(jd_source.application)
+            opt = self._option(jd_source.options)
+            if jd_source.setup_project:
+                setup = SetupProject.objects.filter(content=jd_source.setup_project.content)[0]
+            else:
+                setup = None
             jd_target = JobDescription.objects.create(application_version=ver, option=opt, setup_project=setup, old_id=jd_source.id)
             jd_target.save()
         else:
@@ -130,9 +136,11 @@ class Command(BaseCommand):
         if not pl_source:
             return None
 
-        pl_target = Platform.objects.filter(cmtconfig=pl_source.cmtconfig)
+        pl_target = Platform.objects.filter(old_id=pl_source.id)
         if not pl_target:
-            pl_target = Platform.objects.create(cmtconfig=pl_source.cmtconfig)
+            pl_target = Platform.objects.create(
+                cmtconfig=pl_source.cmtconfig,
+                old_id=pl_source.id)
             pl_target.save()
         else:
             pl_target = pl_target[0]
@@ -140,11 +148,12 @@ class Command(BaseCommand):
         return pl_target
 
     def _handler(self, handler_source):
-        handler_target = Handler.objects.filter(name=handler_source.name)
+        handler_target = Handler.objects.filter(old_id=handler_source.id)
         if not handler_target:
             handler_target = Handler.objects.create(
                 name=handler_source.name,
-                description=handler_source.description
+                description=handler_source.description,
+                old_id=handler_source.id
             )
             handler_target.save()
         else:
@@ -152,12 +161,17 @@ class Command(BaseCommand):
         return handler_target
 
     def _job_handler(self, jh_source):
-        jd = self._job_description(jh_source.jobDescription)
-        handler = self._handler(jh_source.handler)
-
-        jh_target = JobHandler.objects.filter(job_description=jd, handler=handler)
+ 
+        jh_target = JobHandler.objects.filter(old_id=jh_source.id)
         if not jh_target:
-            jh_target = JobHandler.objects.create(job_description=jd, handler=handler)
+            jd = self._job_description(jh_source.jobDescription)
+            handler = self._handler(jh_source.handler)
+
+            jh_target = JobHandler.objects.create(
+                job_description=jd,
+                handler=handler,
+                old_id=jh_source.id
+            )
             jh_target.save()
         else:
             jh_target = jh_target[0]
@@ -167,12 +181,13 @@ class Command(BaseCommand):
         if not host_source:
             return None
 
-        host_target = Host.objects.filter(hostname=host_source.hostname)
+        host_target = Host.objects.filter(old_id=host_source.id)
         if not host_target:
             host_target = Host.objects.create(
                 hostname=host_source.hostname,
                 cpu_info=host_source.cpu_info,
-                memory_info=host_source.memoryinfo
+                memory_info=host_source.memoryinfo,
+                old_id=host_source.id
             )
             host_target.save()
         else:
@@ -180,14 +195,12 @@ class Command(BaseCommand):
         return host_target
 
     def _job(self, job_source):
-        host = self._host(job_source.host)
-        job_description = self._job_description(job_source.jobDescription)
-        platform = self._platform(job_source.platform)
-
-        job_target = Job.objects.filter(host=host, job_description=job_description,
-            platform=platform)
-
+        job_target = Job.objects.filter(old_id=job_source.id)
         if not job_target:
+            host = self._host(job_source.host)
+            job_description = self._job_description(job_source.jobDescription)
+            platform = self._platform(job_source.platform)
+
             job_target = Job.objects.create(
                 host=host,
                 job_description=job_description,
@@ -195,7 +208,8 @@ class Command(BaseCommand):
                 time_start=job_source.time_start,
                 time_end=job_source.time_end,
                 status=job_source.status,
-                is_success=job_source.success)
+                is_success=job_source.success,
+                old_id=job_source.id)
             job_target.save()
             for jr_source in job_source.jobresults.all():
                 self._job_result(jr_source, job_target)
@@ -210,7 +224,9 @@ class Command(BaseCommand):
 
         group_target = AttributeGroup.objects.filter(name=group_source)
         if not group_target:
-            group_target = AttributeGroup.objects.create(name=group_source)
+            group_target = AttributeGroup.objects.create(
+                name=group_source
+            )
             group_target.save()
         else:
             group_target = group_target[0]
@@ -220,11 +236,14 @@ class Command(BaseCommand):
         if not ja_source:
             return None
 
-        group = self._group(ja_source.group)
-
-        ja_target = Attribute.objects.filter(name=ja_source.name)
+        ja_target = Attribute.objects.filter(old_id=ja_source.id)
         if not ja_target:
-            ja_target = Attribute.objects.create(name=ja_source.name, dtype=ja_source.type, description=ja_source.description)
+            group = self._group(ja_source.group)
+            ja_target = Attribute.objects.create(
+                name=ja_source.name,
+                dtype=ja_source.type,
+                description=ja_source.description,
+                old_id=ja_source.id)
             if group:
                 ja_target.groups.add(group)
             ja_target.save()
@@ -256,11 +275,3 @@ class Command(BaseCommand):
             jr_target.save()
         else:
             logger.error(jr_source)
-
-
-
-    host = models.ForeignKey(
-        Host, null=True, related_name='job', db_index=False)
-    job_description = models.ForeignKey('JobDescription', related_name='jobs',
-                                        db_column='job_description_id')
-    platform = models.ForeignKey(Platform, null=True, related_name='jobs')

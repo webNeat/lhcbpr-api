@@ -18,12 +18,13 @@ class Host(models.Model):
     cpu_info = models.CharField(max_length=200)
     memory_info = models.CharField(max_length=200)
 
+    old_id = models.IntegerField(null=True, db_index=True)
     def __unicode__(self):
         return self.hostname
 
 
 class Application(models.Model):
-    name = models.CharField(max_length=50, db_index=True)
+    name = models.CharField(max_length=50, unique=True)
 
     def __unicode__(self):
         return '{0}'.format(self.name)
@@ -31,7 +32,7 @@ class Application(models.Model):
 
 class ApplicationVersion(models.Model):
     application = models.ForeignKey(
-        Application, related_name='versions', db_index=False
+        Application, related_name='versions'
     )
     version = models.CharField(max_length=50)
     is_nightly = models.BooleanField(default=False)
@@ -51,6 +52,7 @@ class Option(models.Model):
     description = models.CharField(max_length=2000)
     is_standalone = models.BooleanField(default=False)
 
+    old_id = models.IntegerField(null=True)
     def __unicode__(self):
         return self.description
 
@@ -59,20 +61,21 @@ class SetupProject(models.Model):
     content = models.CharField(max_length=200)
     description = models.CharField(max_length=200)
 
+    old_id = models.IntegerField(null=True)
     def __unicode__(self):
         return self.description
 
 
 class JobDescription(models.Model):
     application_version = models.ForeignKey(
-        ApplicationVersion, related_name='job_descriptions', db_index=False)
+        ApplicationVersion, related_name='job_descriptions')
     option = models.ForeignKey(
-        Option, null=True, related_name='job_descriptions', db_index=False)
+        Option, null=True, related_name='job_descriptions')
     setup_project = models.ForeignKey(
-        SetupProject, null=True, related_name='job_descriptions', db_index=False
-    )
+        SetupProject, null=True, related_name='job_descriptions')
     
     old_id = models.IntegerField(null=True)
+    
     def __unicode__(self):
         return '{0} (id)   {1}  {2}  {3}'.format(
             self.id,
@@ -83,16 +86,18 @@ class JobDescription(models.Model):
 
 
 class Platform(models.Model):
-    cmtconfig = models.CharField(max_length=100, db_index=True)
+    cmtconfig = models.CharField(max_length=100, unique=True)
 
+    old_id = models.IntegerField(null=True)
     def __unicode__(self):
         return self.cmtconfig
 
 
 class RequestedPlatform(models.Model):
-    job_description = models.ForeignKey(JobDescription, db_index=False)
-    cmtconfig = models.ForeignKey(Platform, db_index=False)
+    job_description = models.ForeignKey(JobDescription)
+    cmtconfig = models.ForeignKey(Platform)
 
+    old_id = models.IntegerField(null=True)
     class Meta:
         unique_together = ("job_description", "cmtconfig")
 
@@ -104,7 +109,7 @@ class RequestedPlatform(models.Model):
 
 class Job(models.Model):
     host = models.ForeignKey(
-        Host, null=True, related_name='job', db_index=False)
+        Host, null=True, related_name='job')
     job_description = models.ForeignKey('JobDescription', related_name='jobs',
                                         db_column='job_description_id')
     platform = models.ForeignKey(Platform, null=True, related_name='jobs')
@@ -113,6 +118,7 @@ class Job(models.Model):
     status = models.CharField(max_length=50)
     is_success = models.BooleanField(default=False)
 
+    old_id = models.IntegerField(null=True)
     def results(self):
         return self.floats + self.string + self.integers
 
@@ -125,16 +131,18 @@ class Job(models.Model):
 
 
 class Handler(models.Model):
-    name = models.CharField(max_length=50, db_index=True)
+    name = models.CharField(max_length=50, unique=True)
     description = models.CharField(max_length=200)
 
+    old_id = models.IntegerField(null=True)
     def __unicode__(self):
         return self.name
 
 class JobHandler(models.Model):
-    job_description = models.ForeignKey(JobDescription, db_index=False)
-    handler = models.ForeignKey(Handler, db_index=False)
+    job_description = models.ForeignKey(JobDescription)
+    handler = models.ForeignKey(Handler)
 
+    old_id = models.IntegerField(null=True)
     class Meta:
         unique_together = ("job_description", "handler")
 
@@ -144,14 +152,15 @@ class JobHandler(models.Model):
         )
 
 class AttributeGroup(models.Model):
-    name = models.CharField(max_length=255, db_index=True)
+    name = models.CharField(max_length=255, unique=True)
 
 class Attribute(models.Model):
-    name = models.CharField(max_length=500, db_index=True)
+    name = models.CharField(max_length=500, unique=True)
     dtype = models.CharField(max_length=10, choices=DATA_TYPE_CHOICES)
     description = models.CharField(max_length=500)
     groups = models.ManyToManyField(AttributeGroup, related_name='attributes')
 
+    old_id = models.IntegerField(null=True)
     def get_result_type(self):
         return globals()["Result" + self.dtype]
     def __unicode__(self):
@@ -162,7 +171,7 @@ class Attribute(models.Model):
 
 class AttributeThreshold(models.Model):
     attribute = models.ForeignKey(
-        Attribute, related_name='thresholds', db_index=False
+        Attribute, related_name='thresholds'
     )
     option = models.ForeignKey(
         Option, related_name='thresholds'
@@ -176,10 +185,11 @@ def content_file_name(instance, filename):
     return '/'.join([str(instance.job.job_description.pk), str(instance.job.pk), filename])
 
 class JobResult(models.Model):
-    job = models.ForeignKey(Job, related_name='results', db_index=False)
+    job = models.ForeignKey(Job, related_name='results')
     attr = models.ForeignKey(
-        Attribute, related_name='jobresults', db_index=False)
+        Attribute, related_name='jobresults')
 
+    old_id = models.IntegerField(null=True)
     def get_value(self):
         subtype = self.attr.get_result_type()
         val = subtype.objects.get(pk=self.pk)
@@ -213,10 +223,11 @@ class ResultFile(JobResult):
 
 
 class HandlerResult(models.Model):
-    job = models.ForeignKey(Job, db_index=False)
-    handler = models.ForeignKey(Handler, db_index=False)
+    job = models.ForeignKey(Job)
+    handler = models.ForeignKey(Handler)
     is_success = models.BooleanField(default=False)
 
+    old_id = models.IntegerField(null=True)
     def __unicode__(self):
         return '{0} (job_id) {1} --- {2}'.format(
             self.job.id, self.handler.name, self.is_success
@@ -226,5 +237,6 @@ class HandlerResult(models.Model):
 class AddedResult(models.Model):
     identifier = models.CharField(max_length=64)
 
+    old_id = models.IntegerField(null=True)
     def __unicode__(self):
         return self.identifier

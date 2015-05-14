@@ -63,10 +63,7 @@ WSGI_APPLICATION = 'wsgi.application'
 # https://docs.djangoproject.com/en/1.7/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(DB_DIR, 'db.sqlite3'),
-    },
+    'default': private.V2_TEST_DB,
     'v1test': private.V1_TEST_DB,
     'v1': private.V1_DB
 }
@@ -120,7 +117,7 @@ LOGGING = {
     'loggers': {
         '': {
             'handlers': ['console'],
-            'level': os.getenv('DJANGO_LOG_LEVEL', 'DEBUG'),
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
         },
     },
 }
