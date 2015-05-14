@@ -4,4 +4,5 @@ djangorestframework==3.0.4
 flup==1.0.2
 wsgiref==0.1.2
 drf-extensions==0.2.7
-cx-Oracle>=5.1.1
+django-extensions==1.5.3
+# cx-Oracle>=5.1.1
