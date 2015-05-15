@@ -200,9 +200,10 @@ class ActiveApplicationViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
 
-class SearchJobsViewSet(viewsets.ViewSet):
+class SearchJobsViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
+    serializer_class = JobListSerializer
 
-    def list(self, request):
+    def get_queryset(self):
         id_field = 'job_description__application_version__application__id'
         name_field = 'job_description__application_version__application__name'
         queryset = (
@@ -210,25 +211,28 @@ class SearchJobsViewSet(viewsets.ViewSet):
             .select_related()
             .order_by("-id")
         )
-        application = request.query_params.get("application", None)
+        application = self.request.query_params.get("application", None)
         if application:
             ids = application.split(',')
             queryset = queryset.filter(
                 job_description__application_version__application__id__in=ids)
 
-        versions = request.query_params.get("versions", None)
+        versions = self.request.query_params.get("versions", None)
         if versions:
             ids = versions.split(',')
             queryset = queryset.filter(
                 job_description__application_version__id__in=ids)
 
-        options = request.query_params.get("options", None)
+        options = self.request.query_params.get("options", None)
         if options:
             ids = options.split(',')
             queryset = queryset.filter(job_description__option__id__in=ids)
-        print >>sys.stderr, queryset.query
-        serializer = JobListSerializer(queryset, many=True, read_only=True, context={'request': request})
-        return Response(serializer.data)
+        
+        return queryset
+        # serializer = JobListSerializer(queryset, many=True, read_only=True, context={'request': request})
+        # return Response(serializer.data)
+
+
 
     def retrieve(self, request, pk=None):
         queryset = Job.objects.all()
