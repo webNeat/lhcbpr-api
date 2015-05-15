@@ -67,7 +67,7 @@ class Command(BaseCommand):
     def _application(self, app_source):
         app_target = Application.objects.filter(name=app_source.appName)
         if not app_target:
-            app_target = Application.objects.create(name=app_source.appName)
+            app_target = Application.objects.create(    name=app_source.appName)
             app_target.save()
         else:
             app_target = app_target[0]
@@ -123,7 +123,7 @@ class Command(BaseCommand):
             ver = self._application(jd_source.application)
             opt = self._option(jd_source.options)
             if jd_source.setup_project:
-                setup = SetupProject.objects.filter(content=jd_source.setup_project.content)[0]
+                setup = SetupProject.objects.filter(old_id=jd_source.setup_project.id)[0]
             else:
                 setup = None
             jd_target = JobDescription.objects.create(application_version=ver, option=opt, setup_project=setup, old_id=jd_source.id)
