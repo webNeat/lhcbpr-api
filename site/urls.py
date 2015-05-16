@@ -57,6 +57,11 @@ router.register(
     base_name="search-jobs"
 )
 
+router.register(
+    r"compare", views.CompareJobsViewSet,
+    base_name="compare-jobs"
+)
+
 # router.register(
 #     r"active/options", views.ActiveOptionViewSet,
 #     base_name="options-active"

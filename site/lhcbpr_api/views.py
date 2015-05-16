@@ -235,7 +235,7 @@ class SearchJobsViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
     def retrieve(self, request, pk=None):
         queryset = Job.objects.all()
         job = get_object_or_404(queryset, pk=pk)
-        serializer = JobRetreiveSerializer(job, context={'request': request})
+        serializer = JobSerializer(job, context={'request': request})
         return Response(serializer.data)
 
     @list_route()
@@ -289,3 +289,22 @@ class SearchJobsViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
 
         serializer = ActiveItemSerializer(result, many=True, read_only=True)
         return Response(serializer.data)
+
+class CompareJobsViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
+    serializer_class = AttributesWithJobResultsSerializer
+    
+    def get_queryset(self):
+        context = self.get_serializer_context()
+        results = Attribute.objects
+        if context["attrs"]:
+            results = results.filter(id__in=context["attrs"])
+        results = results.filter(jobresults__job__id__in=context["ids"])
+        return results.order_by('name').distinct()
+
+    def get_serializer_context(self):
+        result = {"ids": [], "attrs": [], "request": self.request}
+        if 'ids' in self.request.query_params:
+            result["ids"] = [int(id) for id in self.request.query_params['ids'].split(',')]
+        if 'attrs' in self.request.query_params:
+            result["attrs"] = [int(id) for id in self.request.query_params['attrs'].split(',')]        
+        return result

@@ -95,6 +95,22 @@ class AttributeSerializer(serializers.HyperlinkedModelSerializer):
         model = Attribute
         fields = ('id', 'name', 'dtype', 'description', 'thresholds')
 
+
+
+class AttributesWithJobResultsSerializer(serializers.HyperlinkedModelSerializer):
+    thresholds = AttributeThresholdSerializer(many=True, read_only=True)
+    jobvalues = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Attribute
+        fields = ('id', 'name', 'dtype', 'description', 'thresholds', 'jobvalues')
+
+    def get_jobvalues(self, obj):
+        jobresults = JobResult.objects.filter(job__id__in=self.context["ids"], attr=obj)
+        serializer = JobResultOnlyValueSerializer(jobresults, many=True, read_only=True, context=self.context)
+        return serializer.data
+
+
 class AttributeGroupListSerializer(serializers.HyperlinkedModelSerializer):
     resource_uri = ResourceUriField(view_name='attributegroup-detail', read_only=True)
     class Meta:
@@ -159,6 +175,27 @@ class JobResultNoJobSerializer(serializers.HyperlinkedModelSerializer):
         model = JobResult
         fields = ('attr', 'value')
 
+class JobResultValueSerializer(serializers.HyperlinkedModelSerializer):
+    attr = AttributeSerializer(many=False, read_only=True)
+    value = serializers.CharField(source="get_value")
+    class Meta:
+        model = JobResult
+        fields = ('attr', 'value')
+
+class JobIdSerializer(serializers.HyperlinkedModelSerializer):
+    resource_uri = ResourceUriField(view_name='job-detail', read_only=True)
+    class Meta:
+        model = Job
+        fields = ('id', 'resource_uri')
+
+
+class JobResultOnlyValueSerializer(serializers.HyperlinkedModelSerializer):
+    value = serializers.CharField(source="get_value")
+    job = JobIdSerializer()
+    class Meta:
+        model = JobResult
+        fields = ('job', 'value')
+
 class JobSerializer(serializers.HyperlinkedModelSerializer):
     job_description = JobDescriptionSerializer(many=False, read_only=True)
     host = HostSerializer(many=False, read_only=True)
@@ -170,6 +207,12 @@ class JobSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('id', 'resource_uri', 'job_description', 'host', 'platform',
                   'time_start', 'time_end', 'status', 'is_success')
 
+class JobIdSerializer(serializers.HyperlinkedModelSerializer):
+    resource_uri = ResourceUriField(view_name='job-detail', read_only=True)
+    #results = JobResultNoJobSerializer(many=True, read_only=True)
+    class Meta:
+        model = Job
+        fields = ('id', 'resource_uri')
 
 class JobResultNoJobSerializer(serializers.HyperlinkedModelSerializer):
     attr = AttributeSerializer(many=False, read_only=True)
