@@ -159,7 +159,7 @@ class JobResultNoJobSerializer(serializers.HyperlinkedModelSerializer):
         model = JobResult
         fields = ('attr', 'value')
 
-class JobListSerializer(serializers.HyperlinkedModelSerializer):
+class JobSerializer(serializers.HyperlinkedModelSerializer):
     job_description = JobDescriptionSerializer(many=False, read_only=True)
     host = HostSerializer(many=False, read_only=True)
     platform = PlatformSerializer(many=False, read_only=True)
@@ -170,23 +170,17 @@ class JobListSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('id', 'resource_uri', 'job_description', 'host', 'platform',
                   'time_start', 'time_end', 'status', 'is_success')
 
-class JobRetrieveSerializer(serializers.HyperlinkedModelSerializer):
-    job_description = JobDescriptionSerializer(many=False, read_only=True)
-    host = HostSerializer(many=False, read_only=True)
-    platform = PlatformSerializer(many=False, read_only=True)
-    resource_uri = ResourceUriField(view_name='job-detail', read_only=True)
-    results = JobResultNoJobSerializer(many=True, read_only=True)
 
+class JobResultNoJobSerializer(serializers.HyperlinkedModelSerializer):
+    attr = AttributeSerializer(many=False, read_only=True)
+    value = serializers.CharField(source="get_value")
     class Meta:
-        model = Job
-        fields = ('id', 'old_id', 'resource_uri', 'job_description', 'host', 'platform',
-                  'time_start', 'time_end', 'status', 'is_success', 'results')
-
-
+        model = JobResult
+        fields = ('attr', 'value')
 
 class JobResultSerializer(serializers.HyperlinkedModelSerializer):
     attr = AttributeSerializer(many=False, read_only=True)
-    job = JobListSerializer(many=False, read_only=True)
+    job = JobSerializer(many=False, read_only=True)
     value = serializers.CharField(source="get_value")
     class Meta:
         model = JobResult

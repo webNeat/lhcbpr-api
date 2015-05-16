@@ -13,7 +13,6 @@ from rest_framework import mixins
 from rest_framework.response import Response
 from serializers import *
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_extensions.mixins import PaginateByMaxMixin
 
 from django.shortcuts import get_object_or_404
 from django.db.models import Count
@@ -84,6 +83,10 @@ class JobResultViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
     queryset = JobResult.objects.all()
     serializer_class = JobResultSerializer
 
+class JobResultNoJobViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
+    queryset = JobResult.objects.all()
+    serializer_class = JobResultNoJobSerializer
+
 
 class JobResultByOptionAndAttribute(viewsets.ViewSet):
     queryset = JobResult.objects.all()
@@ -98,13 +101,8 @@ class JobResultByOptionAndAttribute(viewsets.ViewSet):
 
 class JobViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
     queryset = Job.objects.all()
-    serializer_class = JobListSerializer
+    serializer_class = JobSerializer
 
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return JobListSerializer
-        else:
-            return JobRetrieveSerializer
 
 class PlatformViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
     queryset = Platform.objects.all()
@@ -201,7 +199,7 @@ class ActiveApplicationViewSet(viewsets.ViewSet):
 
 
 class SearchJobsViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
-    serializer_class = JobListSerializer
+    serializer_class = JobSerializer
 
     def get_queryset(self):
         id_field = 'job_description__application_version__application__id'
