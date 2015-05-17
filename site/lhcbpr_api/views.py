@@ -166,6 +166,28 @@ class ActiveApplicationViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
     @list_route()
+    def slots(self, request, pk):
+        id_field = 'job_description__application_version__slot__id'
+        name_field = 'job_description__application_version__slot__name'
+        queryset = (
+            Job.objects
+            .select_related()
+            .values(id_field, name_field)
+            .filter(job_description__application_version__slot__id__isnull=False, job_description__application_version__application__id=pk)
+            .annotate(njobs=Count(id_field))
+        )
+        result = []
+        for app in queryset:
+            result.append(
+                {"id": app[id_field],
+                 "name": app[name_field],
+                 "count": app["njobs"]
+                 }
+            )
+        serializer = ActiveItemSerializer(result, many=True, read_only=True)
+        return Response(serializer.data)
+
+    @list_route()
     def options(self, request, pk):
         id_field = 'job_description__option__id'
         name_field = 'job_description__option__content'
