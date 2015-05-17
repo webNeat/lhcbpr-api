@@ -74,12 +74,35 @@ class Command(BaseCommand):
 
         app_version_target = ApplicationVersion.objects.filter(
             version=app_source.appVersion, application=app_target)
+        
         if not app_version_target:
+            is_nightly = ApplicationVersion.is_it_nightly(app_source.appVersion)
+            
+            slot = None 
+            slotname = None
+            number = None
+            vtime = None
+            
+            if is_nightly:
+                res = ApplicationVersion.get_slot_and_number(app_source.appVersion)
+
+                if res:
+                    slotname,number,vtime = res
+                else:
+                    slotname = app_source.appVersion
+                if slotname:    
+                    slots = Slot.objects.filter(name=slotname)
+                    if not slots:
+                        slot = Slot.objects.create(name=slotname)
+                    else:
+                        slot = slots[0]
+
             app_version_target = ApplicationVersion.objects.create(
                 version=app_source.appVersion,
                 application=app_target,
-                is_nightly=ApplicationVersion.is_it_nightly(
-                    app_source.appVersion)
+                slot=slot,
+                vtime=vtime,
+                is_nightly=is_nightly
             )
             app_version_target.save()
         else:

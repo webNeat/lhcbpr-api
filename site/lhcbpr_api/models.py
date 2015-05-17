@@ -1,4 +1,6 @@
 from django.db import models
+import dateutil.parser
+from django.utils import timezone
 
 
 import logging
@@ -29,12 +31,21 @@ class Application(models.Model):
     def __unicode__(self):
         return '{0}'.format(self.name)
 
+class Slot(models.Model):
+    name = models.CharField(max_length=50, null=False, unique=True)
+    def __unicode__(self):
+        return '{0}'.format(self.name)
+
 
 class ApplicationVersion(models.Model):
     application = models.ForeignKey(
         Application, related_name='versions'
     )
     version = models.CharField(max_length=50)
+    slot =  models.ForeignKey(
+        Slot, related_name='versions', null=True
+    )
+    vtime = models.DateTimeField(null=True)
     is_nightly = models.BooleanField(default=False)
 
     class Meta:
@@ -46,6 +57,39 @@ class ApplicationVersion(models.Model):
     @staticmethod
     def is_it_nightly(version):
         return version and (version[0] != 'v')
+
+    @staticmethod
+    def get_slot_and_number(slot_string):
+        print "SASHA ", slot_string
+        if '.'  in slot_string:
+            delim = '.'
+        else: 
+            delim = '-'
+        
+        names = slot_string.split(delim)
+
+        slot = slot_string
+        number = None
+        vtime = None
+        try:
+            if delim == '.':
+                if len(names) > 1:
+                    slot = names[0]
+                    number = int(names[1])
+                if len(names) == 3:
+                    try:
+                        vtime = timezone.make_aware(dateutil.parser.parse(names[2]))
+                    except:
+                        pass
+            elif len(names) > 1: 
+                slot = delim.join(names[:-1])
+                number = int(names[-1])
+            else:
+                return None
+            return (slot, number, vtime)
+        except:
+            return None
+
 
 class Option(models.Model):
     content = models.CharField(max_length=2000)
@@ -119,6 +163,15 @@ class Job(models.Model):
     is_success = models.BooleanField(default=False)
 
     old_id = models.IntegerField(null=True)
+
+    def save(self, *args, **kwargs):
+        super(Job, self).save(*args, **kwargs) # Call the "real" save() method.
+        # Insert version time if not exists
+        version = self.job_description.application_version
+        if not version.vtime:
+            version.vtime = self.time_start
+            version.save()
+
     def results(self):
         return self.floats + self.string + self.integers
 
