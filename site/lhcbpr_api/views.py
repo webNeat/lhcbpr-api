@@ -368,7 +368,7 @@ class CompareJobsViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
         if context["attrs"]:
             results = results.filter(id__in=context["attrs"])
         if context["contains"]:
-            results = results.filter(name__contains=context["contains"])
+            results = results.filter(name__icontains=context["contains"])
         results = results.filter(jobresults__job__id__in=context["ids"])
         return results.order_by('name').distinct()
 
