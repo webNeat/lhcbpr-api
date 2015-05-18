@@ -134,8 +134,7 @@ class ActiveApplicationViewSet(viewsets.ViewSet):
                  "count": app["njobs"]
                  }
             )
-        serializer = ActiveItemSerializer(result, many=True, read_only=True)
-        return Response(serializer.data)
+        return Response(result)
 
     def retrieve(self, request, pk=None):
         queryset = Application.objects.all()
@@ -147,23 +146,73 @@ class ActiveApplicationViewSet(viewsets.ViewSet):
     def versions(self, request, pk):
         id_field = 'job_description__application_version__id'
         name_field = 'job_description__application_version__version'
+        time_field = 'job_description__application_version__vtime'
+        slot_id_field = 'job_description__application_version__slot__id'
+        slot_field = 'job_description__application_version__slot__name'
+        
+        result = []
+        # Releases
         queryset = (
             Job.objects
             .select_related()
-            .values(id_field, name_field)
-            .filter(job_description__application_version__application__id=pk)
+            .values(id_field, name_field, time_field)
+            .filter(
+                job_description__application_version__slot__isnull=True,
+                job_description__application_version__application__id=pk)
             .annotate(njobs=Count(id_field))
+            .order_by('-'+time_field)
         )
-        result = []
+        releases = []
         for app in queryset:
-            result.append(
+            releases.append(
                 {"id": app[id_field],
                  "name": app[name_field],
                  "count": app["njobs"]
-                 }
+                }
             )
-        serializer = ActiveItemSerializer(result, many=True, read_only=True)
-        return Response(serializer.data)
+        result.append({'name': 'Releases', 'values': releases})
+        
+        # Slots
+        queryset = (
+            Job.objects
+            .select_related()
+            .values(slot_id_field, slot_field)
+            .filter(
+                job_description__application_version__slot__isnull=False,
+                job_description__application_version__application__id=pk)
+            .annotate(njobs=Count(slot_id_field))
+            .order_by(slot_field)
+        )
+
+        slots = []
+        for slot in queryset:
+            slot_record = {'name': slot[slot_field]}
+            queryset_per_slot = (
+                Job.objects
+                .select_related()
+                .values(id_field, name_field, time_field)
+                .filter(
+                    job_description__application_version__slot__id=slot[slot_id_field],
+                    job_description__application_version__application__id=pk
+                )
+                .annotate(njobs=Count(id_field))
+                .order_by('-' + time_field)[:7]
+            )
+            slot_values = []
+            for app in queryset_per_slot:
+                slot_values.append(
+                    {   
+                        "id": app[id_field],
+                        "name": app[name_field],
+                        "count": app["njobs"]
+                    }
+                )
+            slot_record["values"] = slot_values
+            slot_record["count"] = slot["njobs"]
+            if slot_values:
+                result.append(slot_record)   
+        
+        return Response(result)
 
     @list_route()
     def slots(self, request, pk):
@@ -184,8 +233,7 @@ class ActiveApplicationViewSet(viewsets.ViewSet):
                  "count": app["njobs"]
                  }
             )
-        serializer = ActiveItemSerializer(result, many=True, read_only=True)
-        return Response(serializer.data)
+        return Response(result)
 
     @list_route()
     def options(self, request, pk):
@@ -216,8 +264,7 @@ class ActiveApplicationViewSet(viewsets.ViewSet):
                  }
             )
 
-        serializer = ActiveItemSerializer(result, many=True, read_only=True)
-        return Response(serializer.data)
+        return Response(result)
 
 
 class SearchJobsViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
@@ -248,7 +295,7 @@ class SearchJobsViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
             ids = options.split(',')
             queryset = queryset.filter(job_description__option__id__in=ids)
         
-        return queryset
+        return queryset.order_by('-time_end')
         # serializer = JobListSerializer(queryset, many=True, read_only=True, context={'request': request})
         # return Response(serializer.data)
 
@@ -320,13 +367,19 @@ class CompareJobsViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
         results = Attribute.objects
         if context["attrs"]:
             results = results.filter(id__in=context["attrs"])
+        if context["contains"]:
+            results = results.filter(name__contains=context["contains"])
         results = results.filter(jobresults__job__id__in=context["ids"])
         return results.order_by('name').distinct()
 
     def get_serializer_context(self):
-        result = {"ids": [], "attrs": [], "request": self.request}
+        result = {"ids": [], "attrs": [], "request": self.request, "contains": None}
         if 'ids' in self.request.query_params:
             result["ids"] = [int(id) for id in self.request.query_params['ids'].split(',')]
         if 'attrs' in self.request.query_params:
             result["attrs"] = [int(id) for id in self.request.query_params['attrs'].split(',')]        
+        
+        if 'contains' in self.request.query_params:
+            result['contains'] = self.request.query_params['contains']
+
         return result
